@@ -132,7 +132,7 @@ func NewTransportWithConfig(ja3 string, config *tls.Config) (*http.Transport, er
 func stringToSpec(ja3 string) (*tls.ClientHelloSpec, error) {
 	tokens := strings.Split(ja3, ",")
 
-	version := tokens[0]
+	// version := tokens[0]
 	ciphers := strings.Split(tokens[1], "-")
 	extensions := strings.Split(tokens[2], "-")
 	curves := strings.Split(tokens[3], "-")
@@ -166,6 +166,17 @@ func stringToSpec(ja3 string) (*tls.ClientHelloSpec, error) {
 	}
 	extMap["11"] = &tls.SupportedPointsExtension{SupportedPoints: targetPointFormats}
 
+	// set extension 43
+	vid64, err := strconv.ParseUint(tokens[0], 10, 16)
+	if err != nil {
+		return nil, err
+	}
+	extMap["43"] = &tls.SupportedVersionsExtension{
+		[]uint16{
+			uint16(vid64),
+		},
+	}
+
 	// build extenions list
 	var exts []tls.TLSExtension
 	for _, e := range extensions {
@@ -176,11 +187,11 @@ func stringToSpec(ja3 string) (*tls.ClientHelloSpec, error) {
 		exts = append(exts, te)
 	}
 	// build SSLVersion
-	vid64, err := strconv.ParseUint(version, 10, 16)
-	if err != nil {
-		return nil, err
-	}
-	vid := uint16(vid64)
+	//vid64, err = strconv.ParseUint(version, 10, 16)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//vid := uint16(vid64)
 
 	// build CipherSuites
 	var suites []uint16
@@ -193,8 +204,8 @@ func stringToSpec(ja3 string) (*tls.ClientHelloSpec, error) {
 	}
 
 	return &tls.ClientHelloSpec{
-		TLSVersMin:         vid,
-		TLSVersMax:         vid,
+		//TLSVersMin:         vid,
+		//TLSVersMax:         vid,
 		CipherSuites:       suites,
 		CompressionMethods: []byte{0},
 		Extensions:         exts,
