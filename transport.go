@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 
 	tls "github.com/refraction-networking/utls"
 )
@@ -15,6 +16,8 @@ import (
 // greasePlaceholder is a random value (well, kindof '0x?a?a) specified in a
 // random RFC.
 const greasePlaceholder = 0x0a0a
+
+var rtLocker sync.Mutex
 
 // ErrExtensionNotExist is returned when an extension is not supported by the library
 type ErrExtensionNotExist string
@@ -126,6 +129,8 @@ func NewTransportWithConfig(ja3 string, config *tls.Config) (*http.Transport, er
 
 // stringToSpec creates a ClientHelloSpec based on a JA3 string
 func stringToSpec(ja3 string) (*tls.ClientHelloSpec, error) {
+	defer rtLocker.Unlock()
+	rtLocker.Lock()
 	tokens := strings.Split(ja3, ",")
 
 	// version := tokens[0]
