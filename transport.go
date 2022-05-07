@@ -24,6 +24,10 @@ func (e ErrExtensionNotExist) Error() string {
 	return fmt.Sprintf("Extension does not exist: %s\n", string(e))
 }
 
+type Dialer interface {
+	Dial(network, addr string) (net.Conn, error)
+}
+
 // extMap maps extension values to the TLSExtension object associated with the
 // number. Some values are not put in here because they must be applied in a
 // special way. For example, "10" is the SupportedCurves extension which is also
@@ -78,6 +82,22 @@ var extMap = map[string]tls.TLSExtension{
 // NewTransport creates an http.Transport which mocks the given JA3 signature when HTTPS is used
 func NewTransport(ja3 string) (*http.Transport, error) {
 	return NewTransportWithConfig(ja3, &tls.Config{})
+}
+
+// NewTransport creates an http.Transport which mocks the given JA3 signature when HTTPS is used
+// The transport allows an insecure TLS connection by setting InsecureSkipVerify to true
+func NewTransportInsecure(ja3 string) (*http.Transport, error) {
+	return NewTransportWithConfig(ja3, &tls.Config{InsecureSkipVerify: true})
+}
+
+// NewTransportWithProxy  creates an http.Transport with proxy
+func NewTransportWithProxy(ja3 string, rawProxy string) (*http.Transport, error) {
+	proxyURL, _ := url.Parse(rawProxy)
+	proxyDialer, err := FromURL(proxyURL, Direct)
+	if err != nil {
+		return nil, err
+	}
+	return NewTransportWithDialer(ja3, &tls.Config{InsecureSkipVerify: true}, proxyDialer)
 }
 
 // NewTransportWithConfig creates an http.Transport object given a utls.Config
@@ -191,4 +211,32 @@ func urlToHost(target *url.URL) *url.URL {
 		}
 	}
 	return target
+}
+
+// NewTransportWithDialer - creates an http.Transport object given a utls.Config
+func NewTransportWithDialer(ja3 string, config *tls.Config, dialer Dialer) (*http.Transport, error) {
+
+	dialtls := func(network, addr string) (net.Conn, error) {
+		dialConn, err := dialer.Dial(network, addr)
+		if err != nil {
+			return nil, err
+		}
+
+		spec, err := stringToSpec(ja3)
+		if err != nil {
+			return nil, err
+		}
+		uTlsConn := tls.UClient(dialConn, config, tls.HelloCustom)
+		if err := uTlsConn.ApplyPreset(spec); err != nil {
+			return nil, err
+		}
+
+		uTlsConn.SetSNI(config.ServerName)
+		if err := uTlsConn.Handshake(); err != nil {
+			return nil, err
+		}
+		return uTlsConn, nil
+	}
+
+	return &http.Transport{DialTLS: dialtls, Dial: dialer.Dial}, nil
 }
