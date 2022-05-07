@@ -42,13 +42,15 @@ var extMap = map[string]tls.TLSExtension{
 	"13": &tls.SignatureAlgorithmsExtension{
 		SupportedSignatureAlgorithms: []tls.SignatureScheme{
 			tls.ECDSAWithP256AndSHA256,
-			tls.PSSWithSHA256,
-			tls.PKCS1WithSHA256,
 			tls.ECDSAWithP384AndSHA384,
+			tls.ECDSAWithP521AndSHA512,
+			tls.PSSWithSHA256,
 			tls.PSSWithSHA384,
-			tls.PKCS1WithSHA384,
 			tls.PSSWithSHA512,
+			tls.PKCS1WithSHA256,
+			tls.PKCS1WithSHA384,
 			tls.PKCS1WithSHA512,
+			tls.ECDSAWithSHA1,
 			tls.PKCS1WithSHA1,
 		},
 	},
@@ -61,12 +63,6 @@ var extMap = map[string]tls.TLSExtension{
 	"27": &tls.FakeCertCompressionAlgsExtension{},
 	"28": &tls.FakeRecordSizeLimitExtension{},
 	"35": &tls.SessionTicketExtension{},
-	"43": &tls.SupportedVersionsExtension{Versions: []uint16{
-		tls.GREASE_PLACEHOLDER,
-		tls.VersionTLS13,
-		tls.VersionTLS12,
-		tls.VersionTLS11,
-		tls.VersionTLS10}},
 	"44": &tls.CookieExtension{},
 	"45": &tls.PSKKeyExchangeModesExtension{
 		Modes: []uint8{
@@ -171,9 +167,10 @@ func stringToSpec(ja3 string) (*tls.ClientHelloSpec, error) {
 	if err != nil {
 		return nil, err
 	}
+	vid := uint16(vid64)
 	extMap["43"] = &tls.SupportedVersionsExtension{
-		[]uint16{
-			uint16(vid64),
+		Versions: []uint16{
+			vid,
 		},
 	}
 
@@ -187,11 +184,11 @@ func stringToSpec(ja3 string) (*tls.ClientHelloSpec, error) {
 		exts = append(exts, te)
 	}
 	// build SSLVersion
-	//vid64, err = strconv.ParseUint(version, 10, 16)
-	//if err != nil {
+	// vid64, err = strconv.ParseUint(version, 10, 16)
+	// if err != nil {
 	//	return nil, err
-	//}
-	//vid := uint16(vid64)
+	// }
+	// vid := uint16(vid64)
 
 	// build CipherSuites
 	var suites []uint16
@@ -204,8 +201,8 @@ func stringToSpec(ja3 string) (*tls.ClientHelloSpec, error) {
 	}
 
 	return &tls.ClientHelloSpec{
-		//TLSVersMin:         vid,
-		//TLSVersMax:         vid,
+		TLSVersMin:         vid,
+		TLSVersMax:         vid,
 		CipherSuites:       suites,
 		CompressionMethods: []byte{0},
 		Extensions:         exts,
